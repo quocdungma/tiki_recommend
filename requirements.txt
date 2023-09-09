@@ -11,4 +11,3 @@ pyspark
 nltk
 findspark
 pyngrok
-os
