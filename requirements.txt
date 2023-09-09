@@ -12,7 +12,7 @@ pyspark
 nltk
 pickle
 time
--q findspark
+findspark
 pyngrok==4.1.16
 re
 pyngrok
