@@ -9,9 +9,7 @@ gensim
 pandas_profiling
 pyspark
 nltk
-time
 findspark
-pyngrok==4.1.16
 re
 pyngrok
 os
