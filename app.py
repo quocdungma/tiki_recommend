@@ -3,6 +3,12 @@ import streamlit as st
 from recommender import recommender_gensim, recommend_for_new_product_gensim, preprocess_input, recommend_products_for_user, customer_indexer_model, product_indexer_model, model, get_purchased_products
 import pandas as pd
 
+!apt update
+!apt-get install openjdk-11-jdk-headless -qq > /dev/null
+!wget -q http://archive.apache.org/dist/spark/spark-3.3.0/spark-3.3.0-bin-hadoop3.tgz
+!tar -xvf spark-3.3.0-bin-hadoop3.tgz
+!pip install -q findspark
+
 import os
 os.environ["JAVA_HOME"] = "/usr/lib/jvm/java-11-openjdk-amd64"
 os.environ["SPARK_HOME"] = "/content/spark-3.3.0-bin-hadoop3"
