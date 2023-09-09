@@ -7,7 +7,6 @@ scikit-learn
 underthesea
 gensim
 pandas_profiling
-warnings
 pyspark
 nltk
 pickle
