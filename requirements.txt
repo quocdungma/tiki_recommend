@@ -10,6 +10,5 @@ pandas_profiling
 pyspark
 nltk
 findspark
-re
 pyngrok
 os
