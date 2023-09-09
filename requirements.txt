@@ -9,7 +9,6 @@ gensim
 pandas_profiling
 pyspark
 nltk
-pickle
 time
 findspark
 pyngrok==4.1.16
