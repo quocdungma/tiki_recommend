@@ -107,7 +107,7 @@ def recommend_for_new_product_gensim(product_name, num_recommendations=5):
         # Hiển thị kết quả
         print(f"Recommending {num_recommendations} products similar to {product_name}:")
         for item in similar_items:
-            product_info = product_data.iloc[item[0]][['item_id', 'name', 'image', 'price', 'product_rating', 'description']]
+            product_info = product_data.iloc[item[0]][['item_id', 'name', 'image', 'price', 'rating', 'description']]
             product_info_list.append(product_info)
             print(f"Product ID: {product_info['item_id']}, Product Name: {product_info['name']}, Score: {item[1]}")
 
