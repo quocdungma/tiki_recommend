@@ -11,5 +11,4 @@ pyspark
 nltk
 findspark
 pyngrok
-os
-json
+
