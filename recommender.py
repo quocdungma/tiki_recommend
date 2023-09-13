@@ -3,6 +3,7 @@ import time
 import pandas as pd
 import pickle
 import nltk
+nltk.download('punkt')
 
 import os
 import json
