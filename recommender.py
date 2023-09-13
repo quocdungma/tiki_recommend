@@ -115,90 +115,40 @@ def recommend_for_new_product_gensim(product_name, num_recommendations=5):
     except Exception as e:
         print(f"Có lỗi xảy ra: {e}")
         return None
-
-
 import os
-os.environ["JAVA_HOME"] = "/usr/lib/jvm/java-11-openjdk-amd64"
-os.environ["SPARK_HOME"] = "/content/spark-3.3.0-bin-hadoop3"
-import findspark
-findspark.init()
+import json
+import pandas as pd
 
-import pyspark
-from pyspark import SparkContext
-from pyspark.conf import SparkConf
-from pyspark.sql import SparkSession
-from pyspark.ml.recommendation import ALSModel
-from pyspark.sql import SparkSession
-from pyspark.ml.feature import StringIndexerModel, IndexToString, StringIndexer
-from pyspark.sql import SQLContext
-from pyspark.ml.evaluation import RegressionEvaluator
-from pyspark.ml.recommendation import ALS
-from pyspark.sql.functions import col, explode, udf, isnan, when, count, col, avg
-import pyspark.sql.functions as F
-import matplotlib.pyplot as plt
-import seaborn as sns
-from pyspark.sql.types import StringType, IntegerType, DoubleType
+def get_purchased_products(customer_id, reviews_data, product_data):
+    # Step 1: Filter data
+    purchased_products = reviews_data[reviews_data['customer_id'] == customer_id][['product_id', 'rating']].drop_duplicates()
 
-# Khởi tạo SparkSession
-spark = SparkSession.builder \
-    .appName("Product Recommendation System") \
-    .getOrCreate()
+    # Step 2: Join DataFrames
+    purchased_products_details = purchased_products.merge(product_data, left_on='product_id', right_on='item_id', how='inner')
 
-# Lấy SparkContext từ SparkSession
-sc = spark.sparkContext
-
-model = ALSModel.load('ALS')
-customer_indexer_model = StringIndexerModel.load('customer_indexer_model')
-product_indexer_model = StringIndexerModel.load('product_indexer_model')
-
-product_data_1 = pd.read_csv('ProductRaw.csv')
-for col in product_data_1.columns:
-    if col not in ['item_id', 'rating', 'price']:
-        product_data_1[col] = product_data_1[col].astype(str)
-product_data_spark = spark.createDataFrame(product_data_1)
-
-product_data_spark = product_data_spark.withColumnRenamed("rating", "product_rating")
-reviews_data = spark.read.csv("ReviewRaw.csv", header=True, inferSchema=True)
-
-def get_purchased_products(customer_id, reviews_data, product_data_spark):
-    # Bước 1: Lọc dữ liệu
-    purchased_products = reviews_data.filter(F.col('customer_id') == customer_id).select('product_id', 'rating').distinct()
-
-    # Bước 2: Join DataFrames
-    purchased_products_details = purchased_products.join(product_data_spark, purchased_products.product_id == product_data_spark.item_id, how='inner')
-
-    # Bước 3: Chọn các cột cần thiết
-    purchased_products_details = purchased_products_details.select(
-        'item_id', 'name', 'image', 'price', 'product_rating', 'description', 'rating'
-    )
-
-
-    # Chuyển đổi kết quả thành pandas DataFrame để hiển thị đẹp hơn
-    purchased_products_details = purchased_products_details.toPandas()
-    purchased_products_details['image'] = '<img src="' + purchased_products_details['image'].astype(str) + '" width="100" height="100"/>'
+    # Step 3: Select necessary columns
+    purchased_products_details = purchased_products_details[['item_id', 'name', 'image', 'price', 'product_rating', 'description', 'rating']]
+    
+    # Step 4: Embed images in DataFrame
+    purchased_products_details['image'] = purchased_products_details['image'].apply(lambda x: f'<img src="{x}" width="100px" />')
 
     return purchased_products_details
 
-def recommend_products_for_user(customer_id, customer_indexer_model, product_indexer_model, model, product_data, num_recommendations=10):
+def recommend_products_user(customer_id, df, products_df, num_recommendations=10):
 
-    # Convert customer_id to its indexed form
-    user_subset = spark.createDataFrame([(customer_id, )], ["customer_id"])
-    user_subset_idx = customer_indexer_model.transform(user_subset)
+    customer_id = int(customer_id) 
 
-    # Fetch recommendations
-    userRecs = model.recommendForUserSubset(user_subset_idx, numItems=num_recommendations)  # Recommend top 10 items
+    # Bước 1: Xác định các sản phẩm đã được khuyến nghị
+    recommended_products_already = df[df['customer_id'] == customer_id][['product_id', 'rating']].head(num_recommendations)
 
-    # Explode the recommendations
-    userRecs_exploded = userRecs.withColumn("rec_exp", explode("recommendations")) \
-                               .select("customer_id_idx", "rec_exp.product_id_idx", "rec_exp.rating")
+    # Bước 2: Tìm sản phẩm tương tựht
+    # Ở đây, chúng ta chỉ đơn giản lấy những sản phẩm chưa được khuyến nghị từ tập sản phẩm
+    similar_products = products_df[products_df['item_id'].isin(recommended_products_already['product_id'])]
 
-    # Convert indexed product_id back to original form
-    converter = IndexToString(inputCol="product_id_idx", outputCol="product_id_original", labels=product_indexer_model.labels)
-    userRecs_converted = converter.transform(userRecs_exploded)
-
-    # Join with product_data to get product names
-    recommended_products = userRecs_converted.join(
-        product_data_spark, userRecs_converted.product_id_original == product_data_spark.item_id).select('item_id','name','image','price','product_rating','description')
-    recommended_products_pandas = recommended_products.toPandas()
-
-    return recommended_products_pandas
+    # Bước 3: Sắp xếp sản phẩm dựa trên đánh giá từ df
+    # Ở đây, chúng ta sáp nhập cột đánh giá từ df vào similar_products và sau đó sắp xếp chúng
+    similar_products = similar_products.merge(recommended_products_already, left_on='item_id', right_on='product_id', how='left')
+    recommended_products = similar_products.sort_values(by='rating', ascending=False)
+    
+    # Bước 4: Trả về danh sách khuyến nghị
+    return recommended_products[['name','description','product_rating','price','image']].head(num_recommendations)
