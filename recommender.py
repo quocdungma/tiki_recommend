@@ -4,6 +4,9 @@ import pandas as pd
 import pickle
 import nltk
 
+import os
+import json
+
 from nltk.tokenize import word_tokenize
 import re
 
@@ -67,7 +70,7 @@ def recommender_gensim(product_id, num_recommendations):
     print('Recommending ' + str(num_recommendations) + ' products similar to ' + product_selection['name'].values[0] + '...')
     print('*' * 96)
     for rec in recs:
-        print('Recommended: product id: ' + str(int(rec[0])) + ', ' + rec[1] + ' (score: ' + str(rec[6]) + ')')
+        print('Recommended: product id: ' + str(int(rec[0])) + ', ' + rec[1] + ' (score: ' + str(rec[num_recommendations]) + ')')
 
     end_time = time.time()  # End the timer
 
@@ -104,7 +107,7 @@ def recommend_for_new_product_gensim(product_name, num_recommendations=5):
         # Hiển thị kết quả
         print(f"Recommending {num_recommendations} products similar to {product_name}:")
         for item in similar_items:
-            product_info = product_data.iloc[item[0]][['item_id', 'name', 'image', 'price', 'rating', 'description']]
+            product_info = product_data.iloc[item[0]][['item_id', 'name', 'image', 'price', 'product_rating', 'description']]
             product_info_list.append(product_info)
             print(f"Product ID: {product_info['item_id']}, Product Name: {product_info['name']}, Score: {item[1]}")
 
@@ -126,8 +129,8 @@ def get_purchased_products(customer_id, reviews_data, product_data):
     purchased_products_details = purchased_products.merge(product_data, left_on='product_id', right_on='item_id', how='inner')
 
     # Step 3: Select necessary columns
-    purchased_products_details = purchased_products_details[['item_id', 'name', 'image', 'price', 'product_rating', 'description', 'rating']]
-    
+    purchased_products_details = purchased_products_details[['name', 'image', 'price', 'product_rating', 'rating']]
+
     # Step 4: Embed images in DataFrame
     purchased_products_details['image'] = purchased_products_details['image'].apply(lambda x: f'<img src="{x}" width="100px" />')
 
@@ -135,12 +138,11 @@ def get_purchased_products(customer_id, reviews_data, product_data):
 
 def recommend_products_user(customer_id, df, products_df, num_recommendations=10):
 
-    customer_id = int(customer_id) 
+    customer_id = int(customer_id)
 
     # Bước 1: Xác định các sản phẩm đã được khuyến nghị
-    recommended_products_already = df[df['customer_id'] == customer_id][['product_id', 'rating']].head(num_recommendations)
-
-    # Bước 2: Tìm sản phẩm tương tựht
+    recommended_products_already = df[df['customer_id'] == customer_id][['product_id', 'rating']]
+    # Bước 2: Tìm sản phẩm tương tự
     # Ở đây, chúng ta chỉ đơn giản lấy những sản phẩm chưa được khuyến nghị từ tập sản phẩm
     similar_products = products_df[products_df['item_id'].isin(recommended_products_already['product_id'])]
 
@@ -148,6 +150,6 @@ def recommend_products_user(customer_id, df, products_df, num_recommendations=10
     # Ở đây, chúng ta sáp nhập cột đánh giá từ df vào similar_products và sau đó sắp xếp chúng
     similar_products = similar_products.merge(recommended_products_already, left_on='item_id', right_on='product_id', how='left')
     recommended_products = similar_products.sort_values(by='rating', ascending=False)
-    
+
     # Bước 4: Trả về danh sách khuyến nghị
     return recommended_products[['name','description','product_rating','price','image']].head(num_recommendations)

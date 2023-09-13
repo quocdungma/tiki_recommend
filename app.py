@@ -8,37 +8,13 @@ import json
 # Load data
 product_data = pd.read_csv('product_data.csv')
 product_data = product_data.rename(columns={'rating': 'product_rating'})
+reviews_data = pd.read_csv('ReviewRaw.csv')
+product_list = product_data[['item_id', 'name']].drop_duplicates().values.tolist()
 
-product_data_1 = pd.read_csv('ProductRaw.csv')
-for col in product_data_1.columns:
-    if col not in ['item_id', 'rating', 'price']:
-        product_data_1[col] = product_data_1[col].astype(str)
-directory_path = "recommendations.json"
 
-# Tạo một danh sách để chứa các đối tượng JSON
-json_list = []
+#Đọc dữ liệu
 
-# Lặp qua tất cả các tệp trong thư mục
-for filename in os.listdir(directory_path):
-    # Kiểm tra xem tệp có phải là tệp JSON không
-    if filename.endswith(".json"):
-        # Xây dựng đường dẫn đầy đủ đến tệp
-        file_path = os.path.join(directory_path, filename)
-        
-        # Mở và đọc tệp JSON
-        with open(file_path, 'r') as f:
-            data_str = f.read()
-            
-            # Chia chuỗi thành từng đối tượng JSON riêng lẻ và thêm vào danh sách
-            for json_str in data_str.split('\n'):
-                if json_str.strip():  # Kiểm tra xem chuỗi có khác rỗng không
-                    data = json.loads(json_str)
-                    json_list.append(data)
-# Chuyển danh sách các đối tượng JSON thành một DataFrame
-df = pd.DataFrame(json_list)
-
-df['customer_id'] = df['customer_id'].astype(int)
-df['product_id'] = df['product_id'].astype(int)
+df = pd.read_csv('recommendations_new.csv')
 
 st.title('Product Recommendation System')
 
@@ -65,8 +41,13 @@ recommend_option = st.sidebar.radio("Choose an option to recommend products:", (
 
 if recommend_option == 'Recommend by ID':
     # Allow user to input a product ID
-    product_id = st.text_input('Nhập ID sản phẩm:', '')
-    st.write('Ví dụ: 38458616, 14497425, 60228865,...')
+    selected_product = st.selectbox(
+      'Chọn hoặc gõ tên sản phẩm:',
+      options=product_list,
+      format_func=lambda x: x[1])
+
+    if selected_product:
+      product_id = selected_product[0]  # Lấy product_id từ phần tử đã chọn
 
     if product_id:
         try:
@@ -77,7 +58,7 @@ if recommend_option == 'Recommend by ID':
 
             st.markdown(f"**Product Name:** {product_details['name'].values[0]}")
             st.markdown(f"**Price:** {product_details['price'].values[0]}")
-            st.markdown(f"**Rating:** {product_details['rating'].values[0]}")
+            st.markdown(f"**Rating:** {product_details['product_rating'].values[0]}")
 
             # Display product image if the URL is available
             image_url = product_details['image'].values[0]
@@ -143,14 +124,15 @@ elif recommend_option == 'Recommend by Name':
 
 elif recommend_option == 'Recommend for Customer ID':
     customer_id = st.text_input('Enter customer ID:', '')
+    st.write('Ví dụ: 9999553, 1064154, 1827148,...')
 
     if customer_id:
         try:
             customer_id = int(customer_id)
-            
+
             # Display purchased products
             st.write('Purchased Products:')
-            purchased_products = get_purchased_products(customer_id, df, product_data)
+            purchased_products = get_purchased_products(customer_id, reviews_data, product_data)
             if purchased_products is not None and not purchased_products.empty:
                 st.markdown(purchased_products.to_html(escape=False), unsafe_allow_html=True)
             else:
@@ -159,6 +141,7 @@ elif recommend_option == 'Recommend for Customer ID':
             # Get recommendations using recommend_products function
             recommendations = recommend_products_user(customer_id, df, product_data, num_recommendations)
 
+            
             if recommendations is not None:
                 st.write('Recommendations:')
                 cols = st.columns(5)
